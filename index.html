@@ -271,7 +271,7 @@
 
 		dateChart.createBrush();
 
-		if ((lastDate.getTime() - firstDate.getTime()) < 3456000) {
+		if ((lastDate.getTime() - firstDate.getTime()) < 3456000000) {
 			dateChart.brushSpecific(firstDate, lastDate);
 		} else {
 			var newDate = new Date(lastDate.getTime());
