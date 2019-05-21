@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+<title>Time Series</title>
+
+<!-- CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="styles/barchart.css">
+<link rel="stylesheet" type="text/css" href="styles/full-calendar.css">
+<link rel="stylesheet" type="text/css" href="styles/information-panel.css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+
+
+<style>
+	body 	{ padding-top:10px; }
+	.bar { fill: steelblue; }
+</style>
+
+<script type="text/javascript" src="d3/d3.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.6/d3-legend.min.js"></script>
+<script src="scripts/constants.js"></script>
+<script src="scripts/lodash/core.js"></script>
+<script src="scripts/color-scale-legend.js"></script>
+
+<script src="scripts/full-calendar.js"></script>
+<script src="scripts/bar-chart-v2.js"></script>
+
+<script src="scripts/barcharts/normal-bar-chart.js"></script>
+<script src="scripts/barcharts/hour-bar-chart.js"></script>
+<script src="scripts/barcharts/date-bar-chart.js"></script>
+<script src="scripts/barcharts/stacked-bar-chart.js"></script>
+<script src="scripts/barcharts/grouped-bar-chart.js"></script>
+
+</head>
+<body class="container">
+
+	<header>
+		<nav class="navbar navbar-expand-sm bg-light">
+
+    <!-- Links -->
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <p class="nav-link" style="margin-bottom:0px; font-weight: bold">Dataset:</p>
+      </li>
+      <li class="nav-item" id="customDataUpload">
+        <input type="file" name="custom-dataset" id="customDataset" onchange="openFile(event)" style="max-width:220px;">
+      </li>
+			<li class="nav-item">
+        <a class="nav-link" href="index.html">Calendar</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="statistics.html">Statistics</a>
+      </li>
+    </ul>
+
+</nav>
+
+<script type="text/javascript">
+  var timezone = getTimezone();
+
+  var openFile = function(event) {
+    if (window.File && window.FileReader && window.FileList && window.Blob) {
+      var input = event.target;
+
+      var reader = new FileReader();
+      reader.onloadend = function(evt) {
+        if (evt.target.readyState == FileReader.DONE) {
+          var allData = [];
+          d3.csvParseRows(reader.result).map(function(row) {
+            allData.push({
+              date: row[0],
+              timezone: row[1]
+            });
+          });
+          console.log(allData)
+          rawData = allData;
+          var savedObject = {
+            "annotations": [],
+            "observations": [],
+            "sessions": [],
+            "data": allData
+          };
+
+          window.localStorage.setItem('custom-data', JSON.stringify(savedObject));
+          window.localStorage.setItem('custom-date', (new Date()).getTime());
+					window.localStorage.setItem('dataset', 'custom');
+          sessions = [];
+          annotations = [];
+          observations = [];
+          removeAllVisualizations();
+          var tz = getTimezone();
+				  data = processData(tz.value, rawData);
+          createVisualizations();
+        }
+      };
+      reader.readAsBinaryString(input.files[0]);
+    } else {
+      alert('The File APIs are not fully supported in this browser.');
+    }
+  };
+
+  function datasetChange() {
+		var dataset = document.getElementById("datasets").value;
+    window.localStorage.setItem('dataset', dataset);
+
+    if (dataset === "custom") {
+      d3.select("#customDataUpload").style("display", "inline");
+    } else {
+      d3.select("#customDataUpload").style("display", "none");
+      document.getElementById("customDataset").value = "";
+      removeAllVisualizations();
+
+      //getDataset(dataset);
+    }
+  }
+
+  function getDataset(dataset) {
+    annotations = [];
+    invalidObservations = [];
+    sessions = [];
+		var xmlhttp = new XMLHttpRequest();
+		xmlhttp.onreadystatechange = function() {
+			if (this.readyState == 4 && this.status == 200) {
+        var result = JSON.parse(this.responseText);
+        console.log(result)
+				rawData = result.data;
+				for (annotation in result.annotations)
+				{
+					if (!(result.annotations[annotation].systemName in annotations)) {
+						annotations[result.annotations[annotation].systemName] = [];
+					}
+
+					annotations[result.annotations[annotation].systemName].push({
+						"comment": result.annotations[annotation].comment,
+						"creationDate": result.annotations[annotation].creationDate,
+						"type": result.annotations[annotation].type,
+						"id": result.annotations[annotation].id
+					});
+        }
+
+        for (observation in result.observations)
+				{
+					if (!(result.observations[observation].systemName in invalidObservations)) {
+						invalidObservations[result.observations[observation].systemName] = [];
+					}
+
+					invalidObservations[result.observations[observation].systemName].push({
+						"comment": result.observations[observation].comment,
+						"creationDate": result.observations[observation].creationDate,
+						"type": result.observations[observation].type,
+						"id": result.observations[observation].id
+					});
+        }
+
+        for (session in result.sessions) {
+          sessions.push(result.sessions[session]);
+        }
+
+        var tz = getTimezone();
+				data = processData(tz, rawData);
+				createVisualizations();
+			}
+		};
+		xmlhttp.open("GET", ("/datasets/"+dataset), true);
+		xmlhttp.send();
+  }
+
+  function getTimezone() {
+    var tz = window.localStorage.getItem('timezone');
+    if (tz === null) {
+      tz = "1";
+    }
+    return tz;
+  }
+</script>
+	</header>
+	<br>
+	<div class="row">
+		<span style="float:right">Choose specific days:</span>
+		<select style="float:right" name="specific-day" id="specificDay" onchange="specificDayChange(this.value)">
+			<option value="">All days</option>
+			<option value="1">Mondays</option>
+			<option value="2">Tuesdays</option>
+			<option value="3">Wednesdays</option>
+			<option value="4">Thursdays</option>
+			<option value="5">Fridays</option>
+			<option value="6">Saturdays</option>
+			<option value="0">Sundays</option>
+			<option value="weekdays">Weekdays</option>
+			<option value="weekends">Weekends</option>
+		</select>
+	</div>
+	<div class="row">
+		<div class='col-sm-1 graph' id='dateChart'></div>
+	</div>
+	<div style="overflow-x: hidden">
+		<table id="fullCalendar"></table>
+	</div>
+	<br>
+	<div class="row text-center" id="colorScales">
+	</div>
+	<br>
+	<footer>
+	</footer>
+
+</body>
+</html>
+
+<script src="scripts/data-processing.js"></script>
+
+<script type='text/javascript'>
+	checkForChosenDataset();
+	var fullCalendar;
+	var dateChart;
+
+	function removeAllVisualizations() {
+		var graphs = document.getElementsByClassName("graph");
+		for (var i in graphs) {
+			while (graphs[i].firstChild) {
+				graphs[i].removeChild(graphs[i].firstChild);
+			}
+		}
+
+		var fullCalendar = document.getElementById("fullCalendar");
+		while (fullCalendar.firstChild) {
+			fullCalendar.removeChild(fullCalendar.firstChild);
+		}
+
+		var colorScales = document.getElementById("colorScales");
+		while (colorScales.firstChild) {
+			colorScales.removeChild(colorScales.firstChild);
+		}
+	}
+
+	function createVisualizations() {
+		var firstDate = new Date(Date.UTC(data['firstRecordedDay'].getUTCFullYear(), data['firstRecordedDay'].getUTCMonth(), data['firstRecordedDay'].getUTCDate()));
+		firstDate.setUTCHours(0,0,0,0);
+
+		var lastDate = new Date(Date.UTC(data['lastRecordedDay'].getUTCFullYear(), data['lastRecordedDay'].getUTCMonth(), data['lastRecordedDay'].getUTCDate()));
+		lastDate.setUTCHours(23,59,59);
+
+		dateChart = new DateBarChart(
+			data['eachDay'],
+			'dateChart',
+			1100,
+			150,
+			{top: 40, right: 60, bottom: 40, left: 40},
+			"Observations per day",
+			[firstDate, lastDate],
+			'default',
+			true,
+			{
+				"xBarFontSize": "12px",
+				"titleFontSize": "15px"
+			}
+		);
+		dateChart.create("Day", "Observations", monthDiff(firstDate, lastDate));
+		dateChart.createBars();
+		dateChart.addStackSwitch(false);
+		if (sessions.length > 0) {
+			dateChart.showSessionsSwitch(false);
+		}
+		//dateChart.createStackedBars();
+		//dateChart.createLegend();
+
+		fullCalendar = new FullCalendar(data['hourByDay'], data['sumOfEachDay'], data['firstRecordedDay'], data['lastRecordedDay'], data['maxHourOfDay'], data["mostInADay"], "");
+		fullCalendar.create();
+		//fullCalendar.setDatePickers(data['firstRecordedDay'], data['lastRecordedDay']);
+		document.getElementById("specificDay").value = "";
+
+		dateChart.createBrush();
+
+		if ((lastDate.getTime() - firstDate.getTime()) < 3456000) {
+			dateChart.brushSpecific(firstDate, lastDate);
+		} else {
+			var newDate = new Date(lastDate.getTime());
+			newDate.setUTCDate(lastDate.getUTCDate()-40);
+			dateChart.brushSpecific(newDate, lastDate);
+		}
+
+		new ColorScaleLegend(fullCalendar.dayColorScale, "Color scale for days");
+		new ColorScaleLegend(fullCalendar.colorScale, "Color scale for hours");
+	}
+
+
+	function specificDayChange(day) {
+		fullCalendar.table.selectAll('[data-timetable-date]')
+			.style("display", function(d,i) {
+				var dayString = this.getAttribute('data-timetable-date');
+				var currentDate = getCorrectUTCDate(dayString);
+			if (day === "weekdays") {
+				if (currentDate.getUTCDay() !== 0 && currentDate.getUTCDay() !== 6) {
+					return "";
+				} else {
+					return "none";
+				}
+			} else if (day === "weekends") {
+				if (currentDate.getUTCDay() === 0 || currentDate.getUTCDay() === 6) {
+					return "";
+				} else {
+					return "none";
+				}
+			}
+			else if (day === "") {
+				return "";
+			}
+			else if (currentDate.getUTCDay() === parseInt(day)) {
+				return "";
+			} else {
+				return "none";
+			}
+		});
+
+		firstDate = new Date(Date.UTC(data['firstRecordedDay'].getUTCFullYear(), data['firstRecordedDay'].getUTCMonth(), data['firstRecordedDay'].getUTCDate()));
+		firstDate.setUTCHours(0,0,0,0);
+		lastDate = new Date(Date.UTC(data['lastRecordedDay'].getUTCFullYear(), data['lastRecordedDay'].getUTCMonth(), data['lastRecordedDay'].getUTCDate()));
+		lastDate.setUTCHours(23,59,59);
+
+		if (day === "" && lastDate.getTime()- firstDate.getTime() > 3456000000) {
+			firstDate = new Date(lastDate.getTime());
+			firstDate.setUTCDate(lastDate.getUTCDate()-40);
+		} else if(day !== "" && !isNaN(day)) {
+			var correctDay = parseInt(day) === 6 ? 0 : (parseInt(day)-1);
+			if (data["amountOfEachWeekday"][correctDay] > 40) {
+				firstDate = new Date(lastDate.getTime());
+				firstDate.setUTCDate(lastDate.getUTCDate()-273);
+			}
+		} else if (day === "weekdays") {
+			if (lastDate.getTime()- firstDate.getTime() > 4665600000) {
+				firstDate = new Date(lastDate.getTime());
+				firstDate.setUTCDate(lastDate.getUTCDate()-54);
+			}
+		} else if (day === "weekends") {
+			var amountOfWeekendDays = data["amountOfEachWeekday"][5] + data["amountOfEachWeekday"][6];
+			if (amountOfWeekendDays > 40) {
+				firstDate = new Date(lastDate.getTime());
+				firstDate.setUTCDate(lastDate.getUTCDate()-136);
+			}
+		}
+
+		dateChart.brushSpecific(firstDate, lastDate);
+	}
+
+	function updateChildGraphs(firstDate, lastDate) {
+		var chosenDays = document.getElementById("specificDay").value;
+		fullCalendar.table.selectAll('[data-timetable-date]')
+			.style("display", function(d,i) {
+				var dayString = this.getAttribute('data-timetable-date');
+				var currentDate = getCorrectUTCDate(dayString);
+				if (currentDate.getTime() >= firstDate.getTime()
+					&& currentDate.getTime() <= lastDate.getTime()
+				) {
+					if (chosenDays === "") {
+						if (this.classList.contains('month-label')) {
+							if (currentDate.getUTCDate() === 1) {
+								this.childNodes[0].style.display = "";
+							} else {
+								this.childNodes[0].style.display = "none";
+							}
+						} else if (currentDate.getUTCDate() === 1){
+							this.style.borderLeft = "2px solid black";
+						} else {
+							this.style.borderLeft = "1px solid black";
+						}
+						return "";
+					} else if (chosenDays === "weekdays") {
+						if (currentDate.getUTCDay() !== 0 && currentDate.getUTCDay() !== 6) {
+							if (this.classList.contains('month-label')) {
+								if ((currentDate.getUTCDate() === 1)
+									|| (currentDate.getUTCDay() === 1 && currentDate.getUTCDate() === 2)
+									|| (currentDate.getUTCDay() === 1 && currentDate.getUTCDate() === 3)) {
+									this.childNodes[0].style.display = "";
+								} else {
+									this.childNodes[0].style.display = "none";
+								}
+							} else if ((currentDate.getUTCDate() === 1)
+									|| (currentDate.getUTCDay() === 1 && currentDate.getUTCDate() === 2)
+									|| (currentDate.getUTCDay() === 1 && currentDate.getUTCDate() === 3)) {
+								this.style.borderLeft = "2px solid black";
+							} else {
+								this.style.borderLeft = "1px solid black";
+							}
+							return "";
+						} else {
+							return "none";
+						}
+					} else if (chosenDays === "weekends") {
+						if (currentDate.getUTCDay() === 0 || currentDate.getUTCDay() === 6) {
+							if (this.classList.contains('month-label')) {
+								if ((currentDate.getUTCDay() === 0 && currentDate.getUTCDate() === 1)
+									|| (currentDate.getUTCDay() === 6 && currentDate.getUTCDate() < 7)) {
+									this.childNodes[0].style.display = "";
+								} else {
+									this.childNodes[0].style.display = "none";
+								}
+							} else if ((currentDate.getUTCDay() === 0 && currentDate.getUTCDate() === 1)
+									|| (currentDate.getUTCDay() === 6 && currentDate.getUTCDate() < 7)) {
+								this.style.borderLeft = "2px solid black";
+							} else {
+								this.style.borderLeft = "1px solid black";
+							}
+							return "";
+						} else {
+							return "none";
+						}
+					}
+					else if (currentDate.getUTCDay() === parseInt(chosenDays)) {
+						if (this.classList.contains('month-label')) {
+							if (currentDate.getUTCDate() < 8) {
+								this.childNodes[0].style.display = "";
+							} else {
+								this.childNodes[0].style.display = "none";
+							}
+						} else if (currentDate.getUTCDate() < 8) {
+							this.style.borderLeft = "2px solid black";
+						} else {
+							this.style.borderLeft = "1px solid black";
+						}
+						return "";
+					} else {
+						return "none";
+					}
+				} else {
+					return "none";
+				}
+			});
+	}
+</script>

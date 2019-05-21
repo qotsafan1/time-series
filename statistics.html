@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+<title>Time Series</title>
+
+<!-- CSS -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css">
+<link rel="stylesheet" type="text/css" href="styles/barchart.css">
+<link rel="stylesheet" type="text/css" href="styles/full-calendar.css">
+<link rel="stylesheet" type="text/css" href="styles/information-panel.css">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+
+
+<style>
+	body 	{ padding-top:10px; }
+	.bar { fill: steelblue; }
+</style>
+
+<script type="text/javascript" src="d3/d3.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/d3-legend/2.25.6/d3-legend.min.js"></script>
+<script src="scripts/constants.js"></script>
+<script src="scripts/lodash/core.js"></script>
+<script src="scripts/color-scale-legend.js"></script>
+
+<script src="scripts/full-calendar.js"></script>
+<script src="scripts/bar-chart-v2.js"></script>
+
+<script src="scripts/barcharts/normal-bar-chart.js"></script>
+<script src="scripts/barcharts/hour-bar-chart.js"></script>
+<script src="scripts/barcharts/date-bar-chart.js"></script>
+<script src="scripts/barcharts/stacked-bar-chart.js"></script>
+<script src="scripts/barcharts/grouped-bar-chart.js"></script>
+
+</head>
+<body class="container">
+
+	<header>
+		<nav class="navbar navbar-expand-sm bg-light">
+
+    <!-- Links -->
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <p class="nav-link" style="margin-bottom:0px; font-weight: bold">Dataset:</p>
+      </li>
+      <li class="nav-item" id="customDataUpload">
+        <input type="file" name="custom-dataset" id="customDataset" onchange="openFile(event)" style="max-width:220px;">
+      </li>
+			<li class="nav-item">
+        <a class="nav-link" href="index.html">Calendar</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="statistics.html">Statistics</a>
+      </li>
+    </ul>
+
+</nav>
+
+<script type="text/javascript">
+  var timezone = getTimezone();
+
+  var openFile = function(event) {
+    if (window.File && window.FileReader && window.FileList && window.Blob) {
+      var input = event.target;
+
+      var reader = new FileReader();
+      reader.onloadend = function(evt) {
+        if (evt.target.readyState == FileReader.DONE) {
+          var allData = [];
+          d3.csvParseRows(reader.result).map(function(row) {
+            allData.push({
+              date: row[0],
+              timezone: row[1]
+            });
+          });
+          console.log(allData)
+          rawData = allData;
+          var savedObject = {
+            "annotations": [],
+            "observations": [],
+            "sessions": [],
+            "data": allData
+          };
+
+          window.localStorage.setItem('custom-data', JSON.stringify(savedObject));
+          window.localStorage.setItem('custom-date', (new Date()).getTime());
+					window.localStorage.setItem('dataset', 'custom');
+          sessions = [];
+          annotations = [];
+          observations = [];
+          removeAllVisualizations();
+          var tz = getTimezone();
+				  data = processData(tz.value, rawData);
+          createVisualizations();
+        }
+      };
+      reader.readAsBinaryString(input.files[0]);
+    } else {
+      alert('The File APIs are not fully supported in this browser.');
+    }
+  };
+
+  function datasetChange() {
+		var dataset = document.getElementById("datasets").value;
+    window.localStorage.setItem('dataset', dataset);
+
+    if (dataset === "custom") {
+      d3.select("#customDataUpload").style("display", "inline");
+    } else {
+      d3.select("#customDataUpload").style("display", "none");
+      document.getElementById("customDataset").value = "";
+      removeAllVisualizations();
+
+      //getDataset(dataset);
+    }
+  }
+
+  function getDataset(dataset) {
+    annotations = [];
+    invalidObservations = [];
+    sessions = [];
+		var xmlhttp = new XMLHttpRequest();
+		xmlhttp.onreadystatechange = function() {
+			if (this.readyState == 4 && this.status == 200) {
+        var result = JSON.parse(this.responseText);
+        console.log(result)
+				rawData = result.data;
+				for (annotation in result.annotations)
+				{
+					if (!(result.annotations[annotation].systemName in annotations)) {
+						annotations[result.annotations[annotation].systemName] = [];
+					}
+
+					annotations[result.annotations[annotation].systemName].push({
+						"comment": result.annotations[annotation].comment,
+						"creationDate": result.annotations[annotation].creationDate,
+						"type": result.annotations[annotation].type,
+						"id": result.annotations[annotation].id
+					});
+        }
+
+        for (observation in result.observations)
+				{
+					if (!(result.observations[observation].systemName in invalidObservations)) {
+						invalidObservations[result.observations[observation].systemName] = [];
+					}
+
+					invalidObservations[result.observations[observation].systemName].push({
+						"comment": result.observations[observation].comment,
+						"creationDate": result.observations[observation].creationDate,
+						"type": result.observations[observation].type,
+						"id": result.observations[observation].id
+					});
+        }
+
+        for (session in result.sessions) {
+          sessions.push(result.sessions[session]);
+        }
+
+        var tz = getTimezone();
+				data = processData(tz, rawData);
+				createVisualizations();
+			}
+		};
+		xmlhttp.open("GET", ("/datasets/"+dataset), true);
+		xmlhttp.send();
+  }
+
+  function getTimezone() {
+    var tz = window.localStorage.getItem('timezone');
+    if (tz === null) {
+      tz = "1";
+    }
+    return tz;
+  }
+</script>
+	</header>
+	<br>
+	<div class="row">
+		<div class='col-sm-1'></div>
+		<div class=''>
+			<p class="h6">Date from:</p>
+		</div>
+		<div class='col-sm-3'>
+			<p  class="h6"id="firstDate"></p>
+		</div>
+		<div class=''>
+				<p class="h6">Date to:</p>
+			</div>
+		<div class='col-sm-4'>
+			<p class="h6" id="lastDate"></p>
+		</div>
+	</div>
+	<div class="row">
+		<div class='col-sm-1 graph' id='dateChart'></div>
+	</div>
+
+	<div class="row">
+		<div class="col">
+			<div class='graph' id='dayBarChart'></div>
+		</div>
+		<div class="col">
+			<div class='graph' id='hourBarChart'></div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col">
+			<div class='graph' id='monthBarChart'></div>
+		</div>
+		<div class="col">
+			<div class='graph' id='weekBarChart'></div>
+		</div>
+	</div>
+	<br>
+	<footer>
+	</footer>
+
+</body>
+</html>
+
+<script src="scripts/data-processing.js"></script>
+
+<script type='text/javascript'>
+	checkForChosenDataset();
+	var childGraphs;
+
+	function removeAllVisualizations() {
+		var graphs = document.getElementsByClassName("graph");
+		for (var i in graphs) {
+			while (graphs[i].firstChild) {
+				graphs[i].removeChild(graphs[i].firstChild);
+			}
+		}
+	}
+
+	function createVisualizations() {
+		var firstDate = new Date(Date.UTC(data['firstYear'], data['firstMonth'], 1));
+		var lastDate = new Date(Date.UTC(data['lastRecordedDay'].getUTCMonth() === 11 ? data['lastYear']+1 : data['lastYear'], data['lastRecordedDay'].getUTCMonth() === 11 ? 0 : (data['lastRecordedDay'].getUTCMonth()+1), 1));
+
+		var dateChart = new DateBarChart(
+			data['eachDay'],
+			'dateChart',
+			1000,
+			250,
+			{top: 40, right: 60, bottom: 40, left: 40},
+			"Observations per day",
+			[data["firstRecordedDay"], data["lastRecordedDay"]],
+			'default',
+			true,
+			{
+				"xBarFontSize": "12px",
+				"titleFontSize": "15px"
+			}
+		);
+		dateChart.create("Day", "Observations", monthDiff(firstDate, lastDate));
+		dateChart.createStackedBars();
+		dateChart.addStackSwitch(true);
+		if (sessions.length > 0) {
+			dateChart.showSessionsSwitch(false);
+		}
+		dateChart.createBrush();
+
+		var monthChart = new NormalBarChart(
+			data['averageDayPerMonth'],
+			'monthBarChart',
+			data['byMonth'].length > 6 ? 1000 : 500,
+			250,
+			{top: 40, right: 60, bottom: 40, left: 40},
+			"Average observations per day each month",
+			data['averageDayPerMonth'],
+			'default',
+			true,
+			{
+				"xBarFontSize": "12px",
+				"titleFontSize": "15px"
+			}
+		);
+		monthChart.create("Month", "Observations", data["maxAverageDayPerMonth"]);
+		monthChart.addClickEventToUpdateDateChart(dateChart, 'month');
+
+		var weekChart = new NormalBarChart(
+			data['byAverageDayPerWeek'],
+			'weekBarChart',
+			data['byMonth'].length > 6 ? 1000 : 500,
+			250,
+			{top: 40, right: 60, bottom: 40, left: 40},
+			"Average observations per day each week",
+			data['byAverageDayPerWeek'],
+			'default',
+			true,
+			{
+				"xBarFontSize": "12px",
+				"titleFontSize": "15px"
+			}
+		);
+		var maxAverageWeek = parseInt(d3.max(data['byAverageDayPerWeek'], function(d) {return d.sum;}));
+		weekChart.create("", "Observations", maxAverageWeek < 10 ? maxAverageWeek : -1);
+		weekChart.addClickEventToUpdateDateChart(dateChart, 'week');
+		weekChart.rotateTickLabels();
+
+		var weekdayChart = new NormalBarChart(
+			data['byAverageWeekday'],
+			'dayBarChart',
+			500,
+			250,
+			{top: 40, right: 60, bottom: 40, left: 40},
+			"Average observations per weekday",
+			data['byAverageWeekday'],
+			'default',
+			true,
+			{
+				"xBarFontSize": "12px",
+				"titleFontSize": "15px"
+			}
+		);
+		var maxAverageWeekday = parseInt(d3.max(data['averagePerWeekday']));
+		weekdayChart.create("Weekday", "Observations", maxAverageWeekday < 10 ? maxAverageWeekday : -1);
+		childGraphs.push(weekdayChart);
+		weekdayChart.addClickEventToUpdateDateChart(dateChart, 'weekday');
+
+		var hourChart = new TimeBarChart(
+			data['byHour'],
+			'hourBarChart',
+			500,
+			250,
+			{top: 40, right: 60, bottom: 40, left: 40},
+			"Observations per hour",
+			[0,24],
+			true,
+			{
+				"xBarFontSize": "12px",
+				"titleFontSize": "15px"
+			}
+		);
+
+		hourChart.create("Hour", "Observations", -1);
+		childGraphs.push(hourChart);
+	}
+
+	function updateChildGraphs(firstDate, lastDate) {
+		firstDate.setUTCHours(0,0,0,0);
+		lastDate.setUTCHours(23,59,59);
+		document.getElementById("firstDate").innerHTML = weekday[firstDate.getUTCDay() === 0 ? 6 : (firstDate.getUTCDay()-1)] + " " + month[firstDate.getUTCMonth()] + " " + firstDate.getUTCDate() + " " + firstDate.getUTCFullYear();
+		document.getElementById("lastDate").innerHTML = weekday[lastDate.getUTCDay() === 0 ? 6 : (lastDate.getUTCDay()-1)] + " " + month[lastDate.getUTCMonth()] + " " + lastDate.getUTCDate() + " " + lastDate.getUTCFullYear();
+		if (childGraphs.length > 0) {
+			var countWeekday = [];
+			var countHour = [];
+
+			for (var i=0; i<24;i++) {
+				countHour[i] = 0;
+			}
+
+			for (var instance in rawData) {
+				var date = Object.keys(rawData[instance])[0]
+				if (date !== "date") {
+					continue;
+				}
+
+				var isoDate = strictIsoParse(rawData[instance][date]);
+
+				if (timezone === "2" && "timezone" in rawData[instance]) {
+					var tzString = rawData[instance]["timezone"];
+					if (tzString.includes("+")) {
+						isoDate.setUTCHours(isoDate.getUTCHours() + parseInt(tzString.slice(1,3)));
+					} else if (tzString.includes("-")) {
+						isoDate.setUTCHours(isoDate.getUTCHours() - parseInt(tzString.slice(1,3)));
+					}
+				}
+
+				if (timezone === "1") {
+					thisTZDate = new Date(isoDate.getTime())
+					isoDate.setUTCMinutes(isoDate.getUTCMinutes() + (-1*thisTZDate.getTimezoneOffset()));
+				}
+				if (firstDate > isoDate || lastDate < isoDate) {
+					continue;
+				}
+
+				var dayOfMonth = isoDate.getUTCFullYear() + "-" + (isoDate.getUTCMonth()+1) + "-" + isoDate.getUTCDate();
+        		var hourOfDay = dayOfMonth + "-" +isoDate.getUTCHours();
+				if (dayOfMonth in invalidObservations
+					|| hourOfDay in invalidObservations) {
+					continue;
+				}
+
+				var currentDay = isoDate.getUTCDay() === 0 ? weekday[6] : weekday[(isoDate.getUTCDay()-1)];
+				sumData(currentDay, countWeekday);
+
+				sumData(isoDate.getUTCHours(), countHour);
+			}
+
+			var weekdayData = createBarData(countWeekday);
+
+			var maxVal = 0;
+			for (var i in countWeekday) {
+				if (countWeekday[i] > maxVal) {
+					maxVal = countWeekday[i];
+				}
+			}
+
+			childGraphs[0].yTicks = maxVal;
+			childGraphs[0].updateGraph(weekdayData);
+			var hourData = createBarData(countHour);
+			childGraphs[1].yTicks = d3.max(countHour);
+			childGraphs[1].updateGraph(hourData);
+
+		}
+	}
+
+	function getSpecificWeekdayData(day) {
+		var days = [];
+		for (var instance in rawData) {
+			var date = Object.keys(rawData[instance])[0]
+			if (date !== "date") {
+				continue;
+			}
+
+			var isoDate = strictIsoParse(rawData[instance][date]);
+
+			var dayOfMonth = isoDate.getUTCFullYear() + "-" + (isoDate.getUTCMonth()+1) + "-" + isoDate.getUTCDate();
+			var hourOfDay = dayOfMonth + "-" +isoDate.getUTCHours();
+			if (dayOfMonth in invalidObservations
+				|| hourOfDay in invalidObservations) {
+				continue;
+			}
+
+			var isoDay = isoDate.getUTCDay() === 0 ? 6 : isoDate.getUTCDay()-1;
+			if (isoDay === day) {
+				days.push(isoDate);
+			}
+		}
+		return days;
+	}
+
+	function updateChildGraphsWithWeekdayData(weekdayIndex) {
+		document.getElementById("firstDate").innerHTML = "All " + weekday[weekdayIndex] + "s";
+		document.getElementById("lastDate").innerHTML = "All " + weekday[weekdayIndex] + "s";
+		if (childGraphs.length > 0) {
+			var countWeekday = [];
+			var countHour = [];
+
+			for (var i=0; i<24;i++) {
+				countHour[i] = 0;
+			}
+
+			for (var instance in rawData) {
+				var date = Object.keys(rawData[instance])[0]
+				if (date !== "date") {
+					continue;
+				}
+
+				var isoDate = strictIsoParse(rawData[instance][date]);
+
+				var dayOfMonth = isoDate.getUTCFullYear() + "-" + (isoDate.getUTCMonth()+1) + "-" + isoDate.getUTCDate();
+        		var hourOfDay = dayOfMonth + "-" +isoDate.getUTCHours();
+				if (dayOfMonth in invalidObservations
+					|| hourOfDay in invalidObservations) {
+					continue;
+				}
+
+				var isoDay = isoDate.getUTCDay() === 0 ? 6 : isoDay = isoDate.getUTCDay()-1;
+
+				if (weekdayIndex !== isoDay) {
+					continue;
+				}
+
+				var currentDay = weekday[isoDay];
+
+				sumData(currentDay, countWeekday);
+
+				sumData(isoDate.getUTCHours(), countHour);
+			}
+
+			var weekdayData = createBarData(countWeekday);
+
+			var maxVal = 0;
+			for (var i in countWeekday) {
+				if (countWeekday[i] > maxVal) {
+					maxVal = countWeekday[i];
+				}
+			}
+
+			childGraphs[0].yTicks = maxVal;
+			childGraphs[0].updateGraph(weekdayData);
+			var hourData = createBarData(countHour);
+			childGraphs[1].yTicks = d3.max(countHour);
+			childGraphs[1].updateGraph(hourData);
+		}
+	}
+</script>

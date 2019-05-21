@@ -1,0 +1,128 @@
+#timetable {
+    width: 600px;
+    height: 400px;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-bottom: 30px;
+}
+
+#timetable thead td {
+    border: 1px solid black;
+    text-align: right;
+    vertical-align: top;
+    max-width: 5px;    
+}
+
+#timetable thead td div {
+    font-size: 15px;
+    font-weight: bold;
+}
+
+#timetable tbody td {
+    border: 1px solid black;
+    text-align: right;
+    vertical-align: top;
+    max-width: 5px;
+}
+
+#timetable tbody td.distribution {
+    width: 90px;
+    border-width: 0px;
+}
+
+#timetable tbody td .distribution-bar {    
+    background-color: lightsteelblue;    
+    height:20px;
+}
+
+#timetable thead tr .distribution-header {    
+    width: 100%;
+    height: 50%;
+    background-color: lightsteelblue;
+    font-size: 10px;
+    font-weight: normal;
+    text-align: center;
+}
+
+#timetable tbody td.hour, #timetable thead td.hour {
+    font-size: 9px;
+    vertical-align: bottom;
+    border: none;
+    max-width: 2px;
+}
+
+#timetable tbody td.hour span, #timetable thead td.hour span {
+    position: relative;
+    top: 6.5px;
+}
+
+#timetable td.hour-pointer {
+    border-right: none;
+    border-left: none;
+    border-top: none;
+    width: 5px;
+}
+
+#timetable thead td.selected-head {
+    border-right-width: 3px;
+    border-left-width: 3px;
+    border-top-width: 3px;
+    border-right-color: blue;
+    border-left-color: blue;
+    border-top-color: blue;
+    
+}
+
+#timetable tbody td.selected-day {
+    border-right-width: 3px;
+    border-left-width: 3px;
+    border-right-color: blue;
+    border-left-color: blue;
+    
+}
+
+#timetable tbody td.selected-day-last {
+    border-bottom-width: 3px;
+    border-bottom-color: blue;
+    
+}
+
+#timetable td.empty {
+    border: none;
+}
+
+#timetable tbody td.chosenDay {
+    border: 3px solid red;
+}
+
+#timetable td .note {
+    margin-left: 4px;
+    position: relative;
+}
+
+#timetable td .overlay {
+    position: absolute;
+    visibility: hidden;
+    background-color: #9FDAEE;
+    border: 1px solid #2BB0D7;
+    border-radius: 6px;
+    font-size: 16px;
+    z-index: 10;
+    text-align: left;
+    padding: 5px;
+    width: 500px;
+    white-space: pre-line;
+    top: -5px;
+    right: 105%; 
+}
+
+#timetable td .note:hover .overlay {
+    visibility: visible;
+}
+
+#annotation-comment {
+    width: 500px;
+    height: 400px;
+}
+
+
