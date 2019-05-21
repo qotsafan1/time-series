@@ -3,6 +3,7 @@ var invalidObservations = [];
 var strictIsoParse;
 
 function processData(timezone, unFilteredData) {
+    timezone = "1";
     childGraphs = [];
     var dataObj = [];
     dataObj["byMonth"] = [];
@@ -752,29 +753,29 @@ function createBarData(countArray) {
 }
 
 function checkForChosenDataset() {
-    var possibleDataset = window.localStorage.getItem('dataset');
+    var possibleDataset = window.sessionStorage.getItem('dataset');
     if (possibleDataset === 'custom') {
-        var customDateString = parseInt(window.localStorage.getItem('custom-date'));
+        var customDateString = parseInt(window.sessionStorage.getItem('custom-date'));
         var timeNow = new Date();
         if ((timeNow.getTime() - customDateString) < 1800000) {
-            rawData = JSON.parse(window.localStorage.getItem('custom-data')).data
+            rawData = JSON.parse(window.sessionStorage.getItem('custom-data')).data
             annotations = [];
             invalidObservations = [];
             sessions = [];
             var tz = getTimezone();
 			data = processData(tz.value, rawData);
             createVisualizations();
-            window.localStorage.setItem('custom-date', timeNow.getTime());
+            window.sessionStorage.setItem('custom-date', timeNow.getTime());
         } else {
-            window.localStorage.setItem('custom-data', "");
-            window.localStorage.setItem('custom-date', "");
-            window.localStorage.setItem('dataset', "");
+            window.sessionStorage.setItem('custom-data', "");
+            window.sessionStorage.setItem('custom-date', "");
+            window.sessionStorage.setItem('dataset', "");
         }
     }
 }
 
 function getTimezone() {
-    var tz = window.localStorage.getItem('timezone');
+    var tz = window.sessionStorage.getItem('timezone');
     if (tz === null) {
       tz = "1";
     }

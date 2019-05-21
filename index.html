@@ -82,9 +82,9 @@
             "data": allData
           };
 
-          window.localStorage.setItem('custom-data', JSON.stringify(savedObject));
-          window.localStorage.setItem('custom-date', (new Date()).getTime());
-					window.localStorage.setItem('dataset', 'custom');
+          window.sessionStorage.setItem('custom-data', JSON.stringify(savedObject));
+          window.sessionStorage.setItem('custom-date', (new Date()).getTime());
+					window.sessionStorage.setItem('dataset', 'custom');
           sessions = [];
           annotations = [];
           observations = [];
@@ -102,7 +102,7 @@
 
   function datasetChange() {
 		var dataset = document.getElementById("datasets").value;
-    window.localStorage.setItem('dataset', dataset);
+    window.sessionStorage.setItem('dataset', dataset);
 
     if (dataset === "custom") {
       d3.select("#customDataUpload").style("display", "inline");
@@ -167,7 +167,7 @@
   }
 
   function getTimezone() {
-    var tz = window.localStorage.getItem('timezone');
+    var tz = window.sessionStorage.getItem('timezone');
     if (tz === null) {
       tz = "1";
     }
