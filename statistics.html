@@ -224,12 +224,6 @@
 	checkForChosenDataset();
 	var childGraphs;
 
-	var firstDate = data["firstRecordedDay"];
-	var lastDate = data["lastRecordedDay"];
-
-	document.getElementById("firstDate").innerHTML = weekday[firstDate.getUTCDay() === 0 ? 6 : (firstDate.getUTCDay()-1)] + " " + month[firstDate.getUTCMonth()] + " " + firstDate.getUTCDate() + " " + firstDate.getUTCFullYear();
-	document.getElementById("lastDate").innerHTML = weekday[lastDate.getUTCDay() === 0 ? 6 : (lastDate.getUTCDay()-1)] + " " + month[lastDate.getUTCMonth()] + " " + lastDate.getUTCDate() + " " + lastDate.getUTCFullYear();
-
 	function removeAllVisualizations() {
 		var graphs = document.getElementsByClassName("graph");
 		for (var i in graphs) {
@@ -245,9 +239,6 @@
 
 		document.getElementById("firstDate").innerHTML = weekday[firstDate.getUTCDay() === 0 ? 6 : (firstDate.getUTCDay()-1)] + " " + month[firstDate.getUTCMonth()] + " " + firstDate.getUTCDate() + " " + firstDate.getUTCFullYear();
 		document.getElementById("lastDate").innerHTML = weekday[lastDate.getUTCDay() === 0 ? 6 : (lastDate.getUTCDay()-1)] + " " + month[lastDate.getUTCMonth()] + " " + lastDate.getUTCDate() + " " + lastDate.getUTCFullYear();
-
-		firstDate = new Date(Date.UTC(data['firstYear'], data['firstMonth'], 1));
-		lastDate = new Date(Date.UTC(data['lastRecordedDay'].getUTCMonth() === 11 ? data['lastYear']+1 : data['lastYear'], data['lastRecordedDay'].getUTCMonth() === 11 ? 0 : (data['lastRecordedDay'].getUTCMonth()+1), 1));
 
 		var dateChart = new DateBarChart(
 			data['eachDay'],
