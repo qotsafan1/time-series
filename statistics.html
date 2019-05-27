@@ -224,6 +224,12 @@
 	checkForChosenDataset();
 	var childGraphs;
 
+	var firstDate = data["firstRecordedDay"];
+	var lastDate = data["lastRecordedDay"];
+
+	document.getElementById("firstDate").innerHTML = weekday[firstDate.getUTCDay() === 0 ? 6 : (firstDate.getUTCDay()-1)] + " " + month[firstDate.getUTCMonth()] + " " + firstDate.getUTCDate() + " " + firstDate.getUTCFullYear();
+	document.getElementById("lastDate").innerHTML = weekday[lastDate.getUTCDay() === 0 ? 6 : (lastDate.getUTCDay()-1)] + " " + month[lastDate.getUTCMonth()] + " " + lastDate.getUTCDate() + " " + lastDate.getUTCFullYear();
+
 	function removeAllVisualizations() {
 		var graphs = document.getElementsByClassName("graph");
 		for (var i in graphs) {
@@ -357,6 +363,11 @@
 				}
 
 				var isoDate = strictIsoParse(rawData[instance][date]);
+
+				if (!isoDate || isoDate === null || isoDate === "") {
+            continue;
+        }
+
 				timezone = "1";
 				if (timezone === "2" && "timezone" in rawData[instance]) {
 					var tzString = rawData[instance]["timezone"];
@@ -416,6 +427,10 @@
 
 			var isoDate = strictIsoParse(rawData[instance][date]);
 
+			if (!isoDate || isoDate === null || isoDate === "") {
+          continue;
+      }
+
 			var dayOfMonth = isoDate.getUTCFullYear() + "-" + (isoDate.getUTCMonth()+1) + "-" + isoDate.getUTCDate();
 			var hourOfDay = dayOfMonth + "-" +isoDate.getUTCHours();
 			if (dayOfMonth in invalidObservations
@@ -449,6 +464,10 @@
 				}
 
 				var isoDate = strictIsoParse(rawData[instance][date]);
+
+				if (!isoDate || isoDate === null || isoDate === "") {
+            continue;
+        }
 
 				var dayOfMonth = isoDate.getUTCFullYear() + "-" + (isoDate.getUTCMonth()+1) + "-" + isoDate.getUTCDate();
         		var hourOfDay = dayOfMonth + "-" +isoDate.getUTCHours();

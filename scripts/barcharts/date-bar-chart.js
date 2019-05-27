@@ -17,13 +17,13 @@ DateBarChart.prototype = Object.create(new CustomBarChart());
 DateBarChart.prototype.create = function(xLabel,yLabel, yTicks) {
     this.yLabel = yLabel;
     this.yTicks = yTicks;
-    this.createFrame(this.elementId, this.chartWidth, this.chartHeight)    
+    this.createFrame(this.elementId, this.chartWidth, this.chartHeight)
     this.x = this.xScale(this.width, this.xScaleData);
     this.y = this.yScale();
 
     this.xAxis = this.xAxisBottom(this.x, yTicks, 'time');
     this.yAxis = this.yAxisLeft(this.y, -1);
-    
+
     var d1 = new Date(this.xScaleData[0].getTime());
     d1.setUTCHours(0,0,0,0);
     var d2 = new Date(d1.getTime());
@@ -44,29 +44,21 @@ DateBarChart.prototype.create = function(xLabel,yLabel, yTicks) {
 
 DateBarChart.prototype.updateToSpecificTime = function(type, time) {
     this.removeWeekdayBrushes();
-    
+
     if (type === 'month') {
-        var monthIndex = month.indexOf(time); 
+        var monthIndex = month.indexOf(time);
         var year = this.xScaleData[0].getUTCFullYear();
         var firstInMonth = new Date(Date.UTC(year, monthIndex, 1));
         var lastInMonth = new Date(Date.UTC(year, monthIndex+1, 0));
-        
-        if (this.xScaleData[0].getTime() > firstInMonth.getTime()
-            || this.xScaleData[1].getTime() < firstInMonth.getTime())
-        {
-            firstInMonth = new Date(Date.UTC(year+1, monthIndex, 1));
-            lastInMonth = new Date(Date.UTC(year+1, monthIndex+1, 0));
-        }
         lastInMonth.setUTCHours(23,59,59);
-
         this.g.call(this.brush.move, [this.x(firstInMonth), this.x(lastInMonth)]);
     } else if (type === 'weekday') {
         this.g.call(this.brush.move, [this.width-1,this.width]);
         var weekdayIndex = weekday.indexOf(time);
-        var days = getSpecificWeekdayData(weekdayIndex);        
+        var days = getSpecificWeekdayData(weekdayIndex);
         for (var i in days) {
             var beginOfDay = this.getBeginningOfDay(days[i]);
-            var endOfDay = this.getEndOfDay(days[i]);            
+            var endOfDay = this.getEndOfDay(days[i]);
             this.newWeekdayBrush(beginOfDay, endOfDay);
         }
         updateChildGraphsWithWeekdayData(weekdayIndex);
@@ -150,14 +142,14 @@ DateBarChart.prototype.createStackedBars = function(hourChunks) {
         .data(function(d) {return d;})
         .enter()
         .append("rect")
-            .attr("x", function(d,i) { 
-                return thisObj.xBarPosition(thisObj.x,d["data"],thisObj.xScaleType); 
+            .attr("x", function(d,i) {
+                return thisObj.xBarPosition(thisObj.x,d["data"],thisObj.xScaleType);
             })
             .attr("y", function(d,i) {
                 return thisObj.y(d[1]); })
             .attr("width", this.getBarWidth(this.xScaleType))
-            .attr("height", function(d) { 
-                return (thisObj.y(d[0]) - thisObj.y(d[1])); 
+            .attr("height", function(d) {
+                return (thisObj.y(d[0]) - thisObj.y(d[1]));
             });
 
     this.createLegend(colors, keys)
@@ -167,7 +159,7 @@ DateBarChart.prototype.createLegend = function(colors, keys) {
     var legend = this.svg.selectAll(".legend")
         .data(keys)
         .enter().append("g")
-        .attr("class", "legend")        
+        .attr("class", "legend")
         .attr("transform", function (d, i) { return "translate(0," + i * 15 + ")"; });
 
         legend.append("rect")
@@ -203,7 +195,7 @@ DateBarChart.prototype.createDayTicks = function() {
 
 DateBarChart.prototype.addStackSwitch = function(turnOn) {
     var thisObj = this;
-    
+
     var form = this.svg.append("foreignObject")
         .attr("width", 400)
         .attr("height", 40)
@@ -218,7 +210,7 @@ DateBarChart.prototype.addStackSwitch = function(turnOn) {
         .on("click", function(d, i){
             thisObj.deleteBars();
             thisObj.removeLegend();
-            if (thisObj.svg.select("#stackBars").node().checked) {                
+            if (thisObj.svg.select("#stackBars").node().checked) {
                 thisObj.createStackedBars(parseInt(document.getElementById("chunkSelect").value));
                 thisObj.changeChunkSelect(true);
             } else {
@@ -235,7 +227,7 @@ DateBarChart.prototype.addStackSwitch = function(turnOn) {
             return "none";
         })
         .text("Division of day: ");
-    
+
     var chunck = ["2", "3", "4", "6", "8"];
 
     var select = form.append('select')
@@ -250,7 +242,7 @@ DateBarChart.prototype.addStackSwitch = function(turnOn) {
             }
             return "none";
         });
-    
+
     select.selectAll('option')
         .data(chunck).enter()
         .append('option')
@@ -333,7 +325,7 @@ DateBarChart.prototype.addFirstAndLastTicks = function() {
 
 DateBarChart.prototype.showSessionsSwitch = function(turnOn) {
     var thisObj = this;
-    
+
     var form = this.svg.append("foreignObject")
         .attr("width", 120)
         .attr("height", 40)
@@ -347,7 +339,7 @@ DateBarChart.prototype.showSessionsSwitch = function(turnOn) {
         .attr("class", "stacked-checkbox")
         .property("checked", turnOn)
         .on("click", function(d, i){
-            if (thisObj.svg.select("#showSessions").node().checked) {                
+            if (thisObj.svg.select("#showSessions").node().checked) {
                 thisObj.markSessions();
             } else {
                 thisObj.deleteSessionMarks();
