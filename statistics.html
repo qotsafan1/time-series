@@ -220,6 +220,7 @@
 <script src="scripts/data-processing.js"></script>
 
 <script type='text/javascript'>
+	var dateChart;
 	checkForChosenDataset();
 	var childGraphs;
 
@@ -239,7 +240,7 @@
 		document.getElementById("firstDate").innerHTML = weekday[firstDate.getUTCDay() === 0 ? 6 : (firstDate.getUTCDay()-1)] + " " + month[firstDate.getUTCMonth()] + " " + firstDate.getUTCDate() + " " + firstDate.getUTCFullYear();
 		document.getElementById("lastDate").innerHTML = weekday[lastDate.getUTCDay() === 0 ? 6 : (lastDate.getUTCDay()-1)] + " " + month[lastDate.getUTCMonth()] + " " + lastDate.getUTCDate() + " " + lastDate.getUTCFullYear();
 
-		var dateChart = new DateBarChart(
+		dateChart = new DateBarChart(
 			data['eachDay'],
 			'dateChart',
 			1000,
@@ -340,6 +341,7 @@
 	}
 
 	function updateChildGraphs(firstDate, lastDate) {
+		dateChart.removeWeekdayOutlines();
 		firstDate.setUTCHours(0,0,0,0);
 		lastDate.setUTCHours(23,59,59);
 		document.getElementById("firstDate").innerHTML = weekday[firstDate.getUTCDay() === 0 ? 6 : (firstDate.getUTCDay()-1)] + " " + month[firstDate.getUTCMonth()] + " " + firstDate.getUTCDate() + " " + firstDate.getUTCFullYear();
