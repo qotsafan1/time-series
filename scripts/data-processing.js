@@ -763,7 +763,7 @@ function checkForChosenDataset() {
             invalidObservations = [];
             sessions = [];
             var tz = getTimezone();
-			data = processData(tz.value, rawData);
+			data = processData(tz, rawData);
             createVisualizations();
             window.sessionStorage.setItem('custom-date', timeNow.getTime());
         } else {

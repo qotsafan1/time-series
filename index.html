@@ -29,7 +29,6 @@
 <script src="scripts/barcharts/normal-bar-chart.js"></script>
 <script src="scripts/barcharts/hour-bar-chart.js"></script>
 <script src="scripts/barcharts/date-bar-chart.js"></script>
-<script src="scripts/barcharts/stacked-bar-chart.js"></script>
 <script src="scripts/barcharts/grouped-bar-chart.js"></script>
 
 </head>
@@ -279,8 +278,8 @@
 			dateChart.brushSpecific(newDate, lastDate);
 		}
 
-		new ColorScaleLegend(fullCalendar.dayColorScale, "Color scale for days");
-		new ColorScaleLegend(fullCalendar.colorScale, "Color scale for hours");
+		new ColorScaleLegend(fullCalendar.dayColorScale, "Colors indicating amount of observations from lowest to highest per DAY");
+		new ColorScaleLegend(fullCalendar.colorScale, "Colors indicating amount of observations from lowest to highest per HOUR");
 	}
 
 
