@@ -29,7 +29,6 @@
 <script src="scripts/barcharts/normal-bar-chart.js"></script>
 <script src="scripts/barcharts/hour-bar-chart.js"></script>
 <script src="scripts/barcharts/date-bar-chart.js"></script>
-<script src="scripts/barcharts/stacked-bar-chart.js"></script>
 <script src="scripts/barcharts/grouped-bar-chart.js"></script>
 
 </head>
@@ -416,6 +415,8 @@
 
 	function getSpecificWeekdayData(day) {
 		var days = [];
+		var lastLoopedDay;
+		var countEachDay = [];
 		for (var instance in rawData) {
 			var date = Object.keys(rawData[instance])[0]
 			if (date !== "date") {
@@ -425,8 +426,8 @@
 			var isoDate = strictIsoParse(rawData[instance][date]);
 
 			if (!isoDate || isoDate === null || isoDate === "") {
-          continue;
-      }
+				continue;
+			}
 
 			var dayOfMonth = isoDate.getUTCFullYear() + "-" + (isoDate.getUTCMonth()+1) + "-" + isoDate.getUTCDate();
 			var hourOfDay = dayOfMonth + "-" +isoDate.getUTCHours();
@@ -435,11 +436,33 @@
 				continue;
 			}
 
-			var isoDay = isoDate.getUTCDay() === 0 ? 6 : isoDate.getUTCDay()-1;
-			if (isoDay === day) {
-				days.push(isoDate);
+			// count days that don't appear in dataset
+			if (lastLoopedDay) {
+				var tempDate = new Date(isoDate.getTime());
+				tempDate.setUTCHours(0,0,0,0);
+				if ((tempDate.getTime() - lastLoopedDay.getTime()) > 86400000) {
+					while(lastLoopedDay.getTime() < tempDate.getTime()) {
+						var loopedDay = lastLoopedDay.getUTCDay() === 0 ? 6 : lastLoopedDay.getUTCDay()-1;
+						var tempDay = lastLoopedDay.getUTCFullYear() + "-" + (lastLoopedDay.getUTCMonth()+1) + "-" + lastLoopedDay.getUTCDate();
+						if (!(tempDay in countEachDay) && loopedDay === day) {
+							days.push(new Date(lastLoopedDay.getTime()));
+							countEachDay[tempDay] = 0;
+						}
+						lastLoopedDay.setUTCDate(lastLoopedDay.getUTCDate() + 1);
+					}
+				}
 			}
+
+			var isoDay = isoDate.getUTCDay() === 0 ? 6 : isoDate.getUTCDay()-1;
+			if (!(dayOfMonth in countEachDay) && isoDay === day) {
+				days.push(isoDate);
+				countEachDay[dayOfMonth] = 0;
+			}
+
+			lastLoopedDay = new Date(isoDate.getTime());
+        	lastLoopedDay.setUTCHours(0,0,0,0);
 		}
+
 		return days;
 	}
 
