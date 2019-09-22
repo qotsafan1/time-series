@@ -166,6 +166,45 @@ DateBarChart.prototype.createStackedBars = function(hourChunks) {
     this.createLegend(colors, keys)
 }
 
+DateBarChart.prototype.createStackedBarsByClicks = function(clicks) {
+    console.log(clicks)
+    var keys = ["Single click","Double click","Triple click"];
+    var barData = clicks;
+    var colors =  ["#d7191c","#fdae61","#abdda4"];
+
+    stack = d3.stack().keys(keys);
+    series = stack(barData);
+    thisObj = this;
+
+    var colorScale = d3.scaleOrdinal()
+        .range(colors);
+
+    this.bars = this.g.selectAll(".bar")
+        .data(series)
+        .enter()
+        .append("g")
+        .attr("class", "bar")
+        .style("fill", function(d, i) {
+            return colorScale(i);
+        });
+
+    this.bars.selectAll("rect")
+        .data(function(d) {return d;})
+        .enter()
+        .append("rect")
+            .attr("x", function(d,i) {
+                return thisObj.xBarPosition(thisObj.x,d["data"],thisObj.xScaleType);
+            })
+            .attr("y", function(d,i) {
+                return thisObj.y(d[1]); })
+            .attr("width", this.getBarWidth(this.xScaleType))
+            .attr("height", function(d) {
+                return (thisObj.y(d[0]) - thisObj.y(d[1]));
+            });
+
+    this.createLegend(colors, keys)
+}
+
 DateBarChart.prototype.createLegend = function(colors, keys) {
     var legend = this.svg.selectAll(".legend")
         .data(keys)

@@ -60,7 +60,6 @@
 
 <script type="text/javascript">
   var timezone = getTimezone();
-
   var openFile = function(event) {
     if (window.File && window.FileReader && window.FileList && window.Blob) {
       var input = event.target;
@@ -68,32 +67,36 @@
       var reader = new FileReader();
       reader.onloadend = function(evt) {
         if (evt.target.readyState == FileReader.DONE) {
-          var allData = [];
-          d3.csvParseRows(reader.result).map(function(row) {
-            allData.push({
-              date: row[0],
-              timezone: row[1]
-            });
-          });
-          console.log(allData)
-          rawData = allData;
-          var savedObject = {
-            "annotations": [],
-            "observations": [],
-            "sessions": [],
-            "data": allData
-          };
+			var allData = [];
+			d3.csvParseRows(reader.result).map(function(row) {
+				allData.push({
+					date: row[0],
+					timezone: row[1]
+				});
+			});
+			console.log(allData)			
+			
+			rawData = allData;
+			var savedObject = {
+			"annotations": [],
+			"observations": [],
+			"sessions": [],
+			"data": allData
+			};
 
-          window.sessionStorage.setItem('custom-data', JSON.stringify(savedObject));
-          window.sessionStorage.setItem('custom-date', (new Date()).getTime());
-					window.sessionStorage.setItem('dataset', 'custom');
-          sessions = [];
-          annotations = [];
-          observations = [];
-          removeAllVisualizations();
-          var tz = getTimezone();
-				  data = processData(tz.value, rawData);
-          createVisualizations();
+			window.sessionStorage.setItem('custom-data', JSON.stringify(savedObject));
+			window.sessionStorage.setItem('custom-date', (new Date()).getTime());
+			window.sessionStorage.setItem('dataset', 'custom');
+			sessions = [];
+			annotations = [];
+			observations = [];
+			removeAllVisualizations();
+			var tz = getTimezone();
+            dividedFactoredData = divideIntoClicks(rawData);
+			factoredData = dividedFactoredData[0];
+			dividedData = dividedFactoredData[1];
+			data = processData(tz.value, factoredData);
+			createVisualizations();
         }
       };
       reader.readAsBinaryString(input.files[0]);
@@ -112,61 +115,10 @@
       d3.select("#customDataUpload").style("display", "none");
       document.getElementById("customDataset").value = "";
       removeAllVisualizations();
-
-      //getDataset(dataset);
     }
   }
 
-  function getDataset(dataset) {
-    annotations = [];
-    invalidObservations = [];
-    sessions = [];
-		var xmlhttp = new XMLHttpRequest();
-		xmlhttp.onreadystatechange = function() {
-			if (this.readyState == 4 && this.status == 200) {
-        var result = JSON.parse(this.responseText);
-        console.log(result)
-				rawData = result.data;
-				for (annotation in result.annotations)
-				{
-					if (!(result.annotations[annotation].systemName in annotations)) {
-						annotations[result.annotations[annotation].systemName] = [];
-					}
-
-					annotations[result.annotations[annotation].systemName].push({
-						"comment": result.annotations[annotation].comment,
-						"creationDate": result.annotations[annotation].creationDate,
-						"type": result.annotations[annotation].type,
-						"id": result.annotations[annotation].id
-					});
-        }
-
-        for (observation in result.observations)
-				{
-					if (!(result.observations[observation].systemName in invalidObservations)) {
-						invalidObservations[result.observations[observation].systemName] = [];
-					}
-
-					invalidObservations[result.observations[observation].systemName].push({
-						"comment": result.observations[observation].comment,
-						"creationDate": result.observations[observation].creationDate,
-						"type": result.observations[observation].type,
-						"id": result.observations[observation].id
-					});
-        }
-
-        for (session in result.sessions) {
-          sessions.push(result.sessions[session]);
-        }
-
-        var tz = getTimezone();
-				data = processData(tz, rawData);
-				createVisualizations();
-			}
-		};
-		xmlhttp.open("GET", ("/datasets/"+dataset), true);
-		xmlhttp.send();
-  }
+  
 
   function getTimezone() {
     var tz = window.sessionStorage.getItem('timezone');
@@ -243,6 +195,44 @@
 		document.getElementById("firstDate").innerHTML = weekday[firstDate.getUTCDay() === 0 ? 6 : (firstDate.getUTCDay()-1)] + " " + month[firstDate.getUTCMonth()] + " " + firstDate.getUTCDate() + " " + firstDate.getUTCFullYear();
 		document.getElementById("lastDate").innerHTML = weekday[lastDate.getUTCDay() === 0 ? 6 : (lastDate.getUTCDay()-1)] + " " + month[lastDate.getUTCMonth()] + " " + lastDate.getUTCDate() + " " + lastDate.getUTCFullYear();
 
+		var tz = getTimezone();
+		var oneClickData = processData(tz, dividedData.one);
+		var doubleClickData = processData(tz, dividedData.two);
+		var tripleClickData = processData(tz, dividedData.three);
+		var keys = ["Single click","Double click","Triple click"];
+
+		var stackData = [];
+
+		for(var i in data["sumOfEachDay"]) {
+			var one, two, three = 0;
+			if (i in oneClickData["sumOfEachDay"]) {
+				one = oneClickData["sumOfEachDay"][i];
+			} else {
+				one = 0;
+			}
+
+			if (i in doubleClickData["sumOfEachDay"]) {
+				two = doubleClickData["sumOfEachDay"][i];
+			} else {
+				two = 0;
+			}
+
+			if (i in tripleClickData["sumOfEachDay"]) {
+				three = tripleClickData["sumOfEachDay"][i];
+			} else {
+				three = 0;
+			}
+			if ((one+two+three) === 0) {
+				continue;
+			}
+			stackData.push({
+				"Single click": one,
+				"Double click": two,
+				"Triple click": three,
+				"date": new Date(i)
+			});
+		}
+
 		dateChart = new DateBarChart(
 			data['eachDay'],
 			'dateChart',
@@ -259,21 +249,32 @@
 			}
 		);
 		dateChart.create("Day", "Observations", monthDiff(firstDate, lastDate));
-		dateChart.createStackedBars();
-		dateChart.addStackSwitch(true);
+		//dateChart.createBars();
+		dateChart.createStackedBarsByClicks(stackData);
+		//dateChart.addStackSwitch(true);
 		if (sessions.length > 0) {
-			dateChart.showSessionsSwitch(false);
+			//dateChart.showSessionsSwitch(false);
 		}
-		dateChart.createBrush();
+		//dateChart.createBrush();
 
-		var monthChart = new NormalBarChart(
-			data['averageDayPerMonth'],
+		groupAverageMonth = [];
+		for( var i in data["averageDayPerMonth"]) {
+			groupAverageMonth.push({
+				type: data["averageDayPerMonth"][i].type,
+				"Single click": i in oneClickData["averageDayPerMonth"] ? oneClickData["averageDayPerMonth"][i].sum : 0,
+				"Double click": i in doubleClickData["averageDayPerMonth"] ? doubleClickData["averageDayPerMonth"][i].sum : 0,
+				"Triple click": i in tripleClickData["averageDayPerMonth"] ? tripleClickData["averageDayPerMonth"][i].sum : 0
+			})
+		}
+
+		var monthChart = new GroupedBarChart(
+			groupAverageMonth,
 			'monthBarChart',
-			data['byMonth'].length > 6 ? 1000 : 500,
-			250,
+			950,
+			350,
 			{top: 40, right: 60, bottom: 40, left: 40},
 			"Average observations per day each month",
-			data['averageDayPerMonth'],
+			groupAverageMonth,
 			'default',
 			true,
 			{
@@ -281,17 +282,27 @@
 				"titleFontSize": "15px"
 			}
 		);
-		monthChart.create("Month", "Observations", data["maxAverageDayPerMonth"]);
-		monthChart.addClickEventToUpdateDateChart(dateChart, 'month');
+		var maxMonth = parseInt(d3.max([d3.max(oneClickData['maxAverageDayPerMonth']),d3.max(doubleClickData['maxAverageDayPerMonth']),d3.max(tripleClickData['maxAverageDayPerMonth'])]));
+		monthChart.create("Week", "Observations", maxMonth, keys);
 
-		var weekChart = new NormalBarChart(
-			data['byAverageDayPerWeek'],
+		groupAverageWeek = [];
+		for( var i in data["byAverageDayPerWeek"]) {
+			groupAverageWeek.push({
+				type: data["byAverageDayPerWeek"][i].type,
+				"Single click": i in oneClickData["byAverageDayPerWeek"] ? oneClickData["byAverageDayPerWeek"][i].sum : 0,
+				"Double click": i in doubleClickData["byAverageDayPerWeek"] ? doubleClickData["byAverageDayPerWeek"][i].sum : 0,
+				"Triple click": i in tripleClickData["byAverageDayPerWeek"] ? tripleClickData["byAverageDayPerWeek"][i].sum : 0
+			})
+		}
+
+		var weekChart = new GroupedBarChart(
+			groupAverageWeek,
 			'weekBarChart',
-			data['byMonth'].length > 6 ? 1000 : 500,
-			250,
+			950,
+			350,
 			{top: 40, right: 60, bottom: 40, left: 40},
 			"Average observations per day each week",
-			data['byAverageDayPerWeek'],
+			groupAverageWeek,
 			'default',
 			true,
 			{
@@ -299,19 +310,31 @@
 				"titleFontSize": "15px"
 			}
 		);
-		var maxAverageWeek = parseInt(d3.max(data['byAverageDayPerWeek'], function(d) {return d.sum;}));
-		weekChart.create("", "Observations", maxAverageWeek < 10 ? maxAverageWeek : -1);
-		weekChart.addClickEventToUpdateDateChart(dateChart, 'week');
-		weekChart.rotateTickLabels();
+		var maxWeek = parseInt(d3.max([
+			parseInt(d3.max(oneClickData['byAverageDayPerWeek'], function(d) {return d.sum;})),
+			parseInt(d3.max(doubleClickData['byAverageDayPerWeek'], function(d) {return d.sum;})),
+			parseInt(d3.max(tripleClickData['byAverageDayPerWeek'], function(d) {return d.sum;}))
+		]));
+		weekChart.create("Week", "Observations", maxWeek, keys);
 
-		var weekdayChart = new NormalBarChart(
-			data['byAverageWeekday'],
+		groupWeekdayData = [];
+		for( var i in data["byAverageWeekday"]) {
+			groupWeekdayData.push({
+				type: data["byAverageWeekday"][i].type,
+				"Single click": i in oneClickData["byAverageWeekday"] ? oneClickData["byAverageWeekday"][i].sum : 0,
+				"Double click": i in doubleClickData["byAverageWeekday"] ? doubleClickData["byAverageWeekday"][i].sum : 0,
+				"Triple click": i in tripleClickData["byAverageWeekday"] ? tripleClickData["byAverageWeekday"][i].sum : 0
+			})
+		}
+
+		var weekdayChart = new GroupedBarChart(
+			groupWeekdayData,
 			'dayBarChart',
-			500,
-			250,
+			950,
+			350,
 			{top: 40, right: 60, bottom: 40, left: 40},
 			"Average observations per weekday",
-			data['byAverageWeekday'],
+			groupWeekdayData,
 			'default',
 			true,
 			{
@@ -319,28 +342,40 @@
 				"titleFontSize": "15px"
 			}
 		);
-		var maxAverageWeekday = parseInt(d3.max(data['averagePerWeekday']));
-		weekdayChart.create("Weekday", "Observations", maxAverageWeekday < 10 ? maxAverageWeekday : -1);
-		childGraphs.push(weekdayChart);
-		weekdayChart.addClickEventToUpdateDateChart(dateChart, 'weekday');
+		var maxAverageWeekday = parseInt(d3.max([
+			d3.max(oneClickData['averagePerWeekday']),
+			d3.max(doubleClickData['averagePerWeekday']),
+			d3.max(tripleClickData['averagePerWeekday'])
+		]));
+		weekdayChart.create("Weekday", "Observations", maxAverageWeekday, keys);
 
-		var hourChart = new TimeBarChart(
-			data['byHour'],
+		groupHourData = [];
+		for( var i in data["byHour"]) {
+			groupHourData.push({
+				type: data["byHour"][i].type,
+				"Single click": i in oneClickData["byHour"] ? oneClickData["byHour"][i].sum : 0,
+				"Double click": i in doubleClickData["byHour"] ? doubleClickData["byHour"][i].sum : 0,
+				"Triple click": i in tripleClickData["byHour"] ? tripleClickData["byHour"][i].sum : 0
+			})
+		}
+
+		var hourChart = new GroupedBarChart(
+			groupHourData,
 			'hourBarChart',
-			500,
-			250,
+			950,
+			350,
 			{top: 40, right: 60, bottom: 40, left: 40},
 			"Observations per hour",
-			[0,24],
+			groupHourData,
+			'default',
 			true,
 			{
 				"xBarFontSize": "12px",
 				"titleFontSize": "15px"
 			}
 		);
-
-		hourChart.create("Hour", "Observations", -1);
-		childGraphs.push(hourChart);
+		var maxHour = parseInt(d3.max([d3.max(oneClickData['mostInADay']),d3.max(doubleClickData['mostInADay']),d3.max(tripleClickData['mostInADay'])]));
+		hourChart.create("Hour", "Observations", maxHour, keys);
 	}
 
 	function updateChildGraphs(firstDate, lastDate) {
@@ -529,5 +564,5 @@
 			childGraphs[1].yTicks = d3.max(countHour);
 			childGraphs[1].updateGraph(hourData);
 		}
-	}
+	}	
 </script>
