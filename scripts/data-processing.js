@@ -565,74 +565,12 @@ console.log(unFilteredData)
         });
     }
 
-    dataObj['comparingWeeks'] = [];
-    var indexOfThisWeek = (dataObj['byWeek'].length-1);
-    dataObj['comparingWeeks'].push({
-        "type": "This week",
-        "sum": dataObj['byWeek'][indexOfThisWeek].sum
-    });
-    if (dataObj['byWeek'].length > 2) {
-        dataObj['comparingWeeks'].push({
-            "type": "Last week",
-            "sum": dataObj['byWeek'][indexOfThisWeek-1].sum
-        });
-    }
-
-    if (dataObj['byWeek'].length > 3) {
-        var avgLastTwoWeeks = (dataObj['byWeek'][indexOfThisWeek-1].sum + dataObj['byWeek'][indexOfThisWeek-2].sum)/2;
-        dataObj['comparingWeeks'].push({
-            "type": "Avg last two weeks",
-            "sum": avgLastTwoWeeks
-        });
-    }
-
-    if (dataObj['byWeek'].length > 5) {
-        var avgLastFourWeeks = 0;
-        for(var i=indexOfThisWeek-1; i>indexOfThisWeek-5; i--) {
-            avgLastFourWeeks += dataObj['byWeek'][i].sum;
-        }
-        avgLastFourWeeks = avgLastFourWeeks/4;
-        dataObj['comparingWeeks'].push({
-            "type": "Avg last four weeks",
-            "sum": avgLastFourWeeks
-        });
-    }
-
-    if (dataObj['byWeek'].length > 9) {
-        var avgLastEightWeeks = 0;
-        for(var i=indexOfThisWeek-1; i>indexOfThisWeek-9; i--) {
-            avgLastEightWeeks += dataObj['byWeek'][i].sum;
-        }
-        avgLastEightWeeks = avgLastEightWeeks/8;
-        dataObj['comparingWeeks'].push({
-            "type": "Avg last eight weeks",
-            "sum": avgLastEightWeeks
-        });
-    }
-
-    if (dataObj['byWeek'].length > 13) {
-        var avgLastTwelveWeeks = 0;
-        for(var i=indexOfThisWeek-1; i>indexOfThisWeek-13; i--) {
-            avgLastTwelveWeeks += dataObj['byWeek'][i].sum;
-        }
-        avgLastTwelveWeeks = avgLastTwelveWeeks/12;
-        dataObj['comparingWeeks'].push({
-            "type": "Avg last twelve weeks",
-            "sum": avgLastTwelveWeeks
-        });
-    }
-
     if (sessions.length > 0) {
         for (var i in sessions) {
             var sessionDate = new Date(sessions[i].sessionDate);
             dataObj['sessionDates'].push((sessionDate.getUTCFullYear() +"-"+ (sessionDate.getUTCMonth()+1) +"-"+ sessionDate.getUTCDate()));
         }
     }
-
-    dataObj['comparingWeeks'].push({
-        "type": "Average week",
-        "sum": dataObj['averageWeek'].toFixed(2)
-    });
 
     dataObj["trivia"] = [];
     dataObj["trivia"].push({
@@ -759,11 +697,18 @@ function checkForChosenDataset() {
         var timeNow = new Date();
         if ((timeNow.getTime() - customDateString) < 1800000) {
             rawData = JSON.parse(window.sessionStorage.getItem('custom-data')).data
+            dividedFactoredData = divideIntoClicks(rawData);
+            factoredData = dividedFactoredData[0];
+            dividedData = dividedFactoredData[1];
             annotations = [];
             invalidObservations = [];
             sessions = [];
             var tz = getTimezone();
-			data = processData(tz, rawData);
+            if (window.location.href.includes("multiple")) {
+                data = processData(tz, factoredData);
+            } else {
+                data = processData(tz, rawData);
+            }
             createVisualizations();
             window.sessionStorage.setItem('custom-date', timeNow.getTime());
         } else {
@@ -781,3 +726,76 @@ function getTimezone() {
     }
     return tz;
   }
+
+function divideIntoClicks(unFilteredData) {
+    var clicks = {
+        one: [],
+        two: [],
+        three: []
+    }    
+    
+    var clickBefore = null;
+    var currentClicks = 0;
+    var lastInstance = null;
+    var allFactoredInstances = [];
+
+    for (var instance in unFilteredData) {
+        var date = Object.keys(unFilteredData[instance])[0]
+        if (date !== "date") {
+            continue;
+        }
+
+        if (!unFilteredData[instance][date].includes("-")) {
+            strictIsoParse = d3.utcParse("%Y%m%dT%H%M%SZ");
+        } else {
+            strictIsoParse = d3.utcParse("%Y-%m-%dT%H:%M:%S.%LZ");
+        }
+
+        var isoDate = strictIsoParse(unFilteredData[instance][date]);
+        if (!isoDate || isoDate === null || isoDate === "") {
+            continue;
+        }
+
+        if (timezone === "2" && "timezone" in unFilteredData[instance]) {
+            var tzString = unFilteredData[instance]["timezone"];
+            if (tzString.includes("+")) {
+                isoDate.setUTCHours(isoDate.getUTCHours() + parseInt(tzString.slice(1,3)));
+            } else if (tzString.includes("-")) {
+                isoDate.setUTCHours(isoDate.getUTCHours() - parseInt(tzString.slice(1,3)));
+            }
+        }
+
+        if (timezone === "1") {
+            thisTZDate = new Date(isoDate.getTime())
+            isoDate.setUTCMinutes(isoDate.getUTCMinutes() + (-1*thisTZDate.getTimezoneOffset()));
+        }
+
+        if (!(clickBefore === null)) {
+            if (isoDate.getTime()-clickBefore.getTime() < 2000) {
+                currentClicks++;
+            } else {
+                if (currentClicks === 1) {
+                    clicks.one.push(lastInstance);
+                    allFactoredInstances.push(lastInstance);
+                } else if (currentClicks === 2) {
+                    clicks.two.push(lastInstance);
+                    allFactoredInstances.push(lastInstance);
+                } else if (currentClicks > 2) {
+                    clicks.three.push(lastInstance);
+                    allFactoredInstances.push(lastInstance);
+                }
+                currentClicks = 1;
+            }
+        } else {
+            currentClicks = 1;
+        }
+        
+        clickBefore  = new Date(isoDate.getTime());
+        lastInstance = unFilteredData[instance];
+    }
+
+    console.log(clicks)
+    console.log(allFactoredInstances);
+
+    return [allFactoredInstances, clicks];
+}

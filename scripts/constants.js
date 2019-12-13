@@ -1,4 +1,7 @@
 var data = [];
+var dividedFactoredData = [];
+var dividedData = [];
+var factoredData = [];
 var rawData = [];
 //var sessions = [];
 var month = new Array(12);
